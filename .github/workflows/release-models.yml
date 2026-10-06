@@ -50,20 +50,9 @@ jobs:
           tar -czvf dist/pdfnet3-onnx-models.tar.gz -C models enc.onnx df_dec.onnx erb_dec.onnx config.ini
           cp dist/pdfnet3-onnx-models.tar.gz dist/pdfnet3-models-onnx.tar.gz
 
-          # 2. Package TensorRT engines (if available)
-          if [ -d "models/tensorrt" ] && [ -f "models/tensorrt/enc.engine" ]; then
-            tar -czvf dist/pdfnet3-tensorrt-engines-blackwell.tar.gz -C models/tensorrt enc.engine df_dec.engine erb_dec.engine
-            cp dist/pdfnet3-tensorrt-engines-blackwell.tar.gz dist/pdfnet3-models-tensorrt.tar.gz
-            cp models/tensorrt/*.engine dist/
-
-            # 3. Package All Runtimes bundle (ONNX + TensorRT)
-            tar -czvf dist/pdfnet3-all-runtimes.tar.gz -C models enc.onnx df_dec.onnx erb_dec.onnx config.ini tensorrt/enc.engine tensorrt/df_dec.engine tensorrt/erb_dec.engine
-            cp dist/pdfnet3-all-runtimes.tar.gz dist/pdfnet3-models-all.tar.gz
-          else
-            # Fallback all-runtimes to ONNX bundle if TensorRT is absent
-            cp dist/pdfnet3-onnx-models.tar.gz dist/pdfnet3-all-runtimes.tar.gz
-            cp dist/pdfnet3-onnx-models.tar.gz dist/pdfnet3-models-all.tar.gz
-          fi
+          # 2. Package All Runtimes generic bundle (Universal ONNX for DirectML, CoreML, ROCm, OpenVINO, TensorRT)
+          cp dist/pdfnet3-onnx-models.tar.gz dist/pdfnet3-all-runtimes.tar.gz
+          cp dist/pdfnet3-onnx-models.tar.gz dist/pdfnet3-models-all.tar.gz
 
           # 4. Copy individual ONNX models and config
           cp models/enc.onnx dist/

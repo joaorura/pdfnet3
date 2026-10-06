@@ -1,0 +1,93 @@
+name: Release Models
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag_name:
+        description: 'Release tag name (e.g. v1.0.0)'
+        required: false
+        default: ''
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Package and Publish Models
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Determine release tag
+        id: vars
+        run: |
+          if [ -n "${{ github.event.inputs.tag_name }}" ]; then
+            TAG="${{ github.event.inputs.tag_name }}"
+          elif [[ "${{ github.ref }}" == refs/tags/* ]]; then
+            TAG="${{ github.ref_name }}"
+          else
+            TAG="v1.0.0"
+          fi
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+
+      - name: Verify model assets
+        run: |
+          test -f models/enc.onnx || { echo "Missing models/enc.onnx"; exit 1; }
+          test -f models/df_dec.onnx || { echo "Missing models/df_dec.onnx"; exit 1; }
+          test -f models/erb_dec.onnx || { echo "Missing models/erb_dec.onnx"; exit 1; }
+          test -f models/config.ini || { echo "Missing models/config.ini"; exit 1; }
+          echo "ONNX model assets verified."
+
+      - name: Build release packages
+        run: |
+          mkdir -p dist
+
+          # 1. Package ONNX runtime models
+          tar -czvf dist/pdfnet3-onnx-models.tar.gz -C models enc.onnx df_dec.onnx erb_dec.onnx config.ini
+          cp dist/pdfnet3-onnx-models.tar.gz dist/pdfnet3-models-onnx.tar.gz
+
+          # 2. Package TensorRT engines (if available)
+          if [ -d "models/tensorrt" ] && [ -f "models/tensorrt/enc.engine" ]; then
+            tar -czvf dist/pdfnet3-tensorrt-engines-blackwell.tar.gz -C models/tensorrt enc.engine df_dec.engine erb_dec.engine
+            cp dist/pdfnet3-tensorrt-engines-blackwell.tar.gz dist/pdfnet3-models-tensorrt.tar.gz
+            cp models/tensorrt/*.engine dist/
+
+            # 3. Package All Runtimes bundle (ONNX + TensorRT)
+            tar -czvf dist/pdfnet3-all-runtimes.tar.gz -C models enc.onnx df_dec.onnx erb_dec.onnx config.ini tensorrt/enc.engine tensorrt/df_dec.engine tensorrt/erb_dec.engine
+            cp dist/pdfnet3-all-runtimes.tar.gz dist/pdfnet3-models-all.tar.gz
+          else
+            # Fallback all-runtimes to ONNX bundle if TensorRT is absent
+            cp dist/pdfnet3-onnx-models.tar.gz dist/pdfnet3-all-runtimes.tar.gz
+            cp dist/pdfnet3-onnx-models.tar.gz dist/pdfnet3-models-all.tar.gz
+          fi
+
+          # 4. Copy individual ONNX models and config
+          cp models/enc.onnx dist/
+          cp models/df_dec.onnx dist/
+          cp models/erb_dec.onnx dist/
+          cp models/config.ini dist/
+
+          # 5. Generate SHA256 checksums
+          cd dist
+          sha256sum * > SHA256SUMS.txt
+          cd ..
+
+          echo "Generated release assets:"
+          ls -lh dist/
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.vars.outputs.tag }}
+          name: pDFNet3 Release ${{ steps.vars.outputs.tag }}
+          draft: false
+          prerelease: false
+          files: |
+            dist/*
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

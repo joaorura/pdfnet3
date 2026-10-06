@@ -48,16 +48,35 @@ flowchart TD
 
 ---
 
-## Model Assets
+## Multi-Runtime Model Assets & Releases
 
-Pre-exported production models are available in the [Releases](https://github.com/joaorura/pdfnet3/releases) section:
-1. `pdfnet3-release-asset-v1.tar.gz` (7.9 MB):
-   - `enc.onnx` (1.95 MB)
-   - `df_dec.onnx` (3.34 MB)
-   - `erb_dec.onnx` (3.29 MB)
-   - `config.ini` (standard DeepFilterNet3 configuration)
-2. `voice-enrollment-asset-v1.tar.gz` (79.4 MB):
-   - `enrollment.onnx` (85.2 MB uncompressed, 192-dim ECAPA-TDNN embedding extractor)
+Pre-exported production models for all execution runtimes are available in the [GitHub Releases](https://github.com/joaorura/pdfnet3/releases) section:
+
+### Release Packages
+
+1. **`pdfnet3-onnx-models.tar.gz` (also available as `pdfnet3-models-onnx.tar.gz`) (~8.4 MB)**:
+   - Stateful ONNX models with explicit recurrent & delay-line buffers for $S=1$ real-time causal execution:
+     - `enc.onnx` (1.95 MB) - FiLM-conditioned bottleneck encoder
+     - `df_dec.onnx` (3.34 MB) - FiLM-conditioned deep filtering recurrent decoder
+     - `erb_dec.onnx` (3.29 MB) - ERB gain mask decoder
+     - `config.ini` (standard DeepFilterNet3 configuration)
+   - Certified compatible with Sonos Tract 0.19.16, ONNX Runtime, and OpenVINO.
+
+2. **`pdfnet3-tensorrt-engines-blackwell.tar.gz` (also available as `pdfnet3-models-tensorrt.tar.gz`) (~9.1 MB)**:
+   - Pre-compiled TensorRT execution plans for NVIDIA Blackwell architecture (Compute Capability 12.0):
+     - `enc.engine` (2.23 MB)
+     - `df_dec.engine` (3.52 MB)
+     - `erb_dec.engine` (3.57 MB)
+   - Optimized for sub-millisecond real-time streaming inference on modern NVIDIA GPUs.
+
+3. **`pdfnet3-all-runtimes.tar.gz` (also available as `pdfnet3-models-all.tar.gz`) (~17.5 MB)**:
+   - Complete multi-runtime distribution bundle containing all ONNX models, `config.ini`, and TensorRT engines.
+
+4. **Standalone Model Files**:
+   - Direct download for individual assets: `enc.onnx`, `df_dec.onnx`, `erb_dec.onnx`, `config.ini`, and compiled `.engine` files, accompanied by `SHA256SUMS.txt`.
+
+5. **Voice Enrollment Model**:
+   - `voice-enrollment-asset-v1.tar.gz` (79.4 MB): `enrollment.onnx` (85.2 MB uncompressed, 192-dim ECAPA-TDNN speaker embedding extractor).
 
 ---
 

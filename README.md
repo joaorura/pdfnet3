@@ -87,24 +87,95 @@ Pre-exported production models for all execution runtimes are available in the [
 ```bash
 git clone https://github.com/joaorura/pdfnet3.git
 cd pdfnet3
+
+# Base installation (CPU / CoreML on macOS)
 pip install -e .
+
+# With DirectML (AMD Radeon, Intel Arc, NVIDIA on Windows DirectX 12)
+pip install -e ".[directml]"
+
+# With Intel OpenVINO (Intel NPU, GPU, CPU)
+pip install -e ".[openvino]"
+
+# With NVIDIA CUDA / TensorRT
+pip install -e ".[gpu]"
+
+# With AMD ROCm (Linux)
+pip install -e ".[rocm]"
+```
+
+---
+
+## Hardware Acceleration & Execution Providers (ONNX Runtime)
+
+pDFNet3 natively supports multi-runtime hardware acceleration across heterogeneous vendors and operating systems:
+
+| Accelerator / Provider | Target Hardware | Operating System | Friendly Alias |
+| :--- | :--- | :--- | :--- |
+| **DirectML** (`DmlExecutionProvider`) | AMD Radeon, Intel Arc, NVIDIA GeForce | Windows (DirectX 12) | `"dml"`, `"directml"` |
+| **Apple CoreML** (`CoreMLExecutionProvider`) | Apple Silicon Neural Engine (ANE), Metal GPU | macOS | `"coreml"` |
+| **Intel OpenVINO** (`OpenVINOExecutionProvider`)| Intel Core Ultra NPU, Arc/Iris Xe GPU, CPU | Linux, Windows | `"openvino"` |
+| **AMD ROCm** (`ROCMExecutionProvider`) | AMD Radeon RX / Instinct GPUs | Linux | `"rocm"`, `"amd"` |
+| **AMD Vitis AI** (`VitisAIExecutionProvider`) | AMD Ryzen AI NPU (XDNA) | Windows, Linux | `"vitis"`, `"vitisai"` |
+| **NVIDIA CUDA** (`CUDAExecutionProvider`) | NVIDIA RTX, GeForce, Data Center GPUs | Linux, Windows | `"cuda"`, `"nvidia"` |
+| **NVIDIA TensorRT** (`TensorrtExecutionProvider`)| NVIDIA GPUs (high-throughput engine) | Linux, Windows | `"tensorrt"`, `"trt"` |
+| **CPU Fallback** (`CPUExecutionProvider`) | Universal x86_64, aarch64 CPU fallback | All platforms | `"cpu"` |
+
+### Automatic Accelerator Detection & Graceful Fallback
+
+`PDFNet3Session` inspects your host environment and selects the best available accelerator by default (`provider="auto"`). If an accelerator is requested but unavailable on the host, pDFNet3 cleanly issues a `RuntimeWarning` and gracefully falls back to `CPUExecutionProvider` without crashing:
+
+```python
+from pdfnet3 import (
+    PDFNet3Session,
+    get_available_execution_providers,
+    get_recommended_provider,
+)
+
+# Inspect host providers
+print("Available providers:", get_available_execution_providers())
+print("Recommended provider:", get_recommended_provider())
+
+# 1. Automatic accelerator selection (recommended)
+session = PDFNet3Session("models", provider="auto")
+print("Active provider:", session.active_provider)
+
+# 2. Explicit accelerator selection via friendly alias
+session_dml = PDFNet3Session("models", provider="dml")       # DirectML (AMD/Intel/NVIDIA on Windows)
+session_rocm = PDFNet3Session("models", provider="rocm")     # AMD ROCm (Linux)
+session_coreml = PDFNet3Session("models", provider="coreml") # Apple Silicon Neural Engine
+session_ov = PDFNet3Session("models", provider="openvino")   # Intel OpenVINO (NPU/GPU)
+session_cuda = PDFNet3Session("models", provider="cuda")     # NVIDIA CUDA
+
+# 3. Strict mode (raises ValueError if provider is unavailable)
+# session_strict = PDFNet3Session("models", provider="cuda", fallback_to_cpu=False)
 ```
 
 ### Python Inference Example
 
 ```python
+import numpy as np
 from pdfnet3 import PDFNet3Session
 
-# Load session with pre-exported models
-session = PDFNet3Session("models")
+# Initialize session with auto-detected hardware acceleration
+session = PDFNet3Session("models", provider="auto")
 
 # 1. Neutral bypass (pure noise reduction without speaker conditioning)
 gamma, beta = session.neutral_film_parameters(seq_len=1)
 
 # 2. Voice-conditioned mode (given a 192-dim speaker embedding)
-import numpy as np
 speaker_embedding = np.load("my_profile.npy") # [192]
 gamma_spk, beta_spk = session.voice_film_parameters(speaker_embedding, seq_len=1)
+
+# 3. Real-time streaming forward step (S=1 frame)
+feat_erb = np.random.randn(1, 1, 1, 32).astype(np.float32)
+feat_spec = np.random.randn(1, 2, 1, 96).astype(np.float32)
+outputs = session.run_step(feat_erb, feat_spec, gamma=gamma_spk, beta=beta_spk)
+
+# outputs['coefs']: Complex deep filtering filter coefficients [1, 1, 96, 10]
+# outputs['mask']:  ERB spectral gain mask [1, 1, 1, 32]
+# outputs['lsnr']:  Local SNR estimate [1, 1, 1]
+# outputs['emb']:   Encoder bottleneck embedding [1, 1, 512]
 ```
 
 ---

@@ -24,6 +24,18 @@ dev = [
     "pytest>=7.0.0",
     "ruff>=0.1.0",
 ]
+directml = [
+    "onnxruntime-directml>=1.15.0",
+]
+openvino = [
+    "onnxruntime-openvino>=1.15.0",
+]
+gpu = [
+    "onnxruntime-gpu>=1.15.0",
+]
+rocm = [
+    "onnxruntime-rocm>=1.15.0",
+]
 
 [tool.setuptools.packages.find]
 where = ["src"]

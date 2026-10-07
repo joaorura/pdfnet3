@@ -68,6 +68,15 @@ jobs:
           echo "Generated release assets:"
           ls -lh dist/
 
+      - name: Prepare Release Notes
+        id: notes
+        run: |
+          if [ -f RELEASE_NOTES.md ]; then
+            echo "has_notes=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_notes=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
         with:
@@ -75,8 +84,9 @@ jobs:
           name: pDFNet3 Release ${{ steps.vars.outputs.tag }}
           draft: false
           prerelease: false
+          body_path: ${{ steps.notes.outputs.has_notes == 'true' && 'RELEASE_NOTES.md' || '' }}
           files: |
             dist/*
-          generate_release_notes: true
+          generate_release_notes: ${{ steps.notes.outputs.has_notes != 'true' }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
